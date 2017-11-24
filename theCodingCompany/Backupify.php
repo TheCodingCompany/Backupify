@@ -72,6 +72,12 @@ class Backupify
     private $mysql_user = "root";
 
     /**
+     * Paths to backup for file backups
+     * @var array
+     */
+    private $backup_paths = [];
+
+    /**
      * Construct new class
      * @param string $ipaddress Valid public IP of the current machine
      * @param string $api_token Backupify API token
@@ -87,7 +93,7 @@ class Backupify
 
         $this->ini_settings();
 
-        $this->filename     = "MySQL_{$this->datetime}_";
+        $this->filename     = "_{$this->datetime}_";
         $this->backup_path  = $backup_path;
         
         if(isset($this->settings["api_token"])){
@@ -122,11 +128,56 @@ class Backupify
     }
 
     /**
+     * Backup this path, file or entire folder
+     * @param string $path Path to a file or folder
+     */
+    public function addPath($path = "")
+    {
+        array_push($this->backup_paths, $path);
+
+        return $this;
+    }
+
+    /**
+     * Create the backup of the folders/paths
+     * @param string $filename The filename of the TAR archive
+     */
+    public function backup($filename = "")
+    {
+        $paths = join(" ", $this->backup_paths);
+        if(!empty($paths)){
+            $res = exec("tar -cf {$this->backup_path}/{$filename} {$paths} 2>&1", $output, $retval);
+            if($retval === 0){
+                $res = exec("gzip -9 {$this->backup_path}/{$filename} 2>&1", $output, $retval);
+                if($retval === 0){
+
+                    $this->filename = $filename.".gz";
+
+                    return $this;
+                }else{
+                    $message = "Creating GZIP archive from {$this->backup_path}/{$filename} failed." . print_r($output);
+                    $this->log($message);
+                    throw new \Exception($message);
+                }
+            }else{
+                $message = "Creating TAR archive {$this->backup_path}/{$filename} failed." . print_r($output);
+                $this->log($message);
+                throw new \Exception($message);
+            }
+        }else{
+            $this->log("Nothing to backup. Backup paths is empty.");
+        }
+        return false;
+    }
+
+    /**
      * Backup MySQL database
      * @param string $database The name of the database or null for all
      */
     public function backupMySQL($database = null)
     {
+        $this->filename = "MySQL{$this->filename}";
+        
         if(is_array($database)){
             $database_list = join(" ", $database);
             $this->filename .= "multi-dbs.sql";
@@ -146,6 +197,15 @@ class Backupify
         }
 
         return $this;
+    }
+
+    /**
+     * Get the filename of the MySQL backup
+     * @return string
+     */
+    public function getMySQLFilename()
+    {
+        return $this->backup_path."/".$this->filename;
     }
 
     /**

@@ -11,9 +11,16 @@
 
 require_once "autoload.php";
 
-$backup = new theCodingCompany\Backupify("1.your.public.ip.4", "/home/backups");
+$backup = new theCodingCompany\Backupify("my-public-ip", "/home/backups");
 
+/*
 $backup->setMySQLPassword("SuperSecretRootPassword")
     ->backupMySQL() //Or a single DB
     ->compressBackup() //Tar and GZIP compress
     ->notify(); //Send 'ready' notification to the Backupify API
+*/
+
+$backup->addPath("/home/path/to/folder1")
+    ->addPath("/home/path/to/folder2")
+    ->backup("MyFilesBackup.tar")
+    ->notify();
